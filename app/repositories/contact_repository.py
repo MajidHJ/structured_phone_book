@@ -1,4 +1,4 @@
-from models.contact import Contact
+from app.models.contact import Contact
 
 class ContactRepository:
     def __init__(self):
