@@ -1,4 +1,5 @@
 from app.models.contact import Contact
+from datetime import datetime
 
 class PhoneBookCLI:
     
@@ -20,7 +21,9 @@ class PhoneBookCLI:
         print("1. Add Contact")
         print("2. Show All Contacts")
         print("3. Search")
-        print("4. Exit")
+        print("4. Delete")
+        print("5. Update")
+        print("6. Exit")
         print("="*15)
 
     def handle_choice(self,choice: str) -> None:
@@ -32,6 +35,10 @@ class PhoneBookCLI:
         elif choice == "3":
             self.search()
         elif choice == "4":
+            self.delete()
+        elif choice == "5":
+            self.update()
+        elif choice == "6":
             print("Goodbye! ")
             self.is_running = False
         else:
@@ -50,21 +57,23 @@ class PhoneBookCLI:
             phone= phone,
         )
         self.contacts.append(contact)
+        print("Contact Added Successfully.")
 
     def list_contacts(self) -> None:
         if not self.contacts:
             print("No Contact Found.")
+            return
+        
         for c in self.contacts:
             print(c)
             
 
-    def search(self) -> None:
+    def search(self) -> list["Contact"] | None:
         query = input("Enter Something To Search: ").strip().lower()
         if not query: 
             print("Search query cannot be empty.")
             return
-        found = False
-        
+        result = []
         for c in self.contacts:
             if (
                 query in c.first_name.lower() or 
@@ -72,11 +81,98 @@ class PhoneBookCLI:
                 query in c.email.lower() or 
                 query in c.phone
             ):
-                found = True
-                print(c)
+                result.append(c)
+                print(f"{len(result)}: {c}")
 
-        if not found:
+        if not result:
             print("No Contact Found.")
+            return None
+        
+        return result
+
+    def delete(self) -> None:
+        result = self.search()
+        
+        if not result : return
+
+        try:
+            idx = int(input("Select Index To Delete: ").strip())
+        except ValueError:
+            print("Invalid Index.")
+            return
+        
+        if idx > len(result) or idx < 1:
+            print("Index Out of Range. ")
+            return
+        
+        contact = result[idx-1]
+        confirm = input(f"Are you sure to delete {contact.full_name}? [y/n]:").strip().lower()
+        if confirm in ("y","yes"):
+            self.contacts.remove(contact)
+            print("Contact Removed Successfully.")
+        else:
+            print("Delete Canceled.")
+
+    
+    def update(self) -> None:
+        result = self.search()
+
+        if not result:
+            return
+
+        try:
+            idx = int(input("Select Index To Update: ").strip())
+        except ValueError:
+            print("Invalid Index.")
+            return
+
+        if idx < 1 or idx > len(result):
+            print("Index Out of Range.")
+            return
+
+        contact = result[idx - 1]
+
+        print("Leave a field empty to keep the current value.")
+        print(f"Updating: {contact.full_name}")
+
+        new_first_name = input(f"First Name [{contact.first_name}]: ").strip()
+        new_last_name = input(f"Last Name [{contact.last_name}]: ").strip()
+        new_email = input(f"Email [{contact.email}]: ").strip().lower()
+        new_phone = input(f"Phone [{contact.phone}]: ").strip()
+
+        updated_first_name = new_first_name if new_first_name else contact.first_name
+        updated_last_name = new_last_name if new_last_name else contact.last_name
+        updated_email = new_email if new_email else contact.email
+        updated_phone = new_phone if new_phone else contact.phone
+
+        has_changes = (
+            updated_first_name != contact.first_name or
+            updated_last_name != contact.last_name or
+            updated_email != contact.email or
+            updated_phone != contact.phone
+        )
+
+        if not has_changes:
+            print("No Changes Made.")
+            return
+
+        confirm = input("Save Changes? [y/n]: ").strip().lower()
+
+        if confirm not in ("y", "yes"):
+            print("Update Canceled.")
+            return
+
+        contact.first_name = updated_first_name
+        contact.last_name = updated_last_name
+        contact.email = updated_email
+        contact.phone = updated_phone
+        contact.updated_at = datetime.now()
+
+        print("Contact Updated Successfully.")
+        
+
+        
+
 
     
                 
