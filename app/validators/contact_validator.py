@@ -1,7 +1,24 @@
 import re
+from app.models.contact import Contact
 
 class ValidationError(Exception):
     pass
+
+
+def phone_number_duplicate_checker(
+        phone:str,contacts: list[Contact],
+        current_contact: Contact | None = None) -> None:
+
+    normalized_phone_number = normalize_phone_number(phone)
+    for contact in contacts:
+        if normalize_phone_number(contact.phone) == normalized_phone_number:
+            if current_contact is not None and current_contact.id == contact.id : continue
+            raise ValidationError(f"phone number [{phone}] already exists.")
+
+
+
+def normalize_phone_number(phone:str) -> str:
+    return "".join(d for d in phone if d.isdigit())
 
 
 def validate_contact(first_name: str,last_name: str,email: str,phone: str) -> None:

@@ -1,6 +1,6 @@
 from app.models.contact import Contact
 from datetime import datetime
-from app.validators.contact_validator import ValidationError,validate_contact
+from app.validators.contact_validator import ValidationError,validate_contact, phone_number_duplicate_checker
 
 class PhoneBookCLI:
     
@@ -61,6 +61,13 @@ class PhoneBookCLI:
             )
         except ValidationError as e:
             print("Error:", e)
+            return
+        
+
+        try:
+            phone_number_duplicate_checker(phone,self.contacts)
+        except ValidationError as e:
+            print("Error:",e)
             return
 
 
@@ -177,11 +184,17 @@ class PhoneBookCLI:
                 last_name=updated_last_name,
                 email=updated_email,
                 phone=updated_phone,
-            )
-            
+            )      
         except ValidationError as e:
             print("Error:", e)
-            return        
+            return 
+
+
+        try:
+            phone_number_duplicate_checker(updated_phone,self.contacts,contact)
+        except ValidationError as e:
+            print("Error:",e)       
+            return
 
         confirm = input("Save Changes? [y/n]: ").strip().lower()
 
