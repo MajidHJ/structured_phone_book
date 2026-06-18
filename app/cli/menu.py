@@ -1,5 +1,6 @@
 from app.models.contact import Contact
 from datetime import datetime
+from app.validators.contact_validator import ValidationError,validate_contact
 
 class PhoneBookCLI:
     
@@ -50,6 +51,19 @@ class PhoneBookCLI:
         email = input("Email: ").strip().lower()
         phone = input("Phone Number: ").strip()
 
+        try:
+
+            validate_contact(
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                phone=phone,
+            )
+        except ValidationError as e:
+            print("Error:", e)
+            return
+
+
         contact = Contact(
             first_name= first_name,
             last_name= last_name,
@@ -68,7 +82,7 @@ class PhoneBookCLI:
             print(c)
             
 
-    def search(self) -> list["Contact"] | None:
+    def search(self) -> list[Contact] | None:
         query = input("Enter Something To Search: ").strip().lower()
         if not query: 
             print("Search query cannot be empty.")
@@ -155,6 +169,19 @@ class PhoneBookCLI:
         if not has_changes:
             print("No Changes Made.")
             return
+        
+        try:
+
+            validate_contact(
+                first_name=updated_first_name,
+                last_name=updated_last_name,
+                email=updated_email,
+                phone=updated_phone,
+            )
+            
+        except ValidationError as e:
+            print("Error:", e)
+            return        
 
         confirm = input("Save Changes? [y/n]: ").strip().lower()
 
