@@ -1,12 +1,12 @@
-from app.models.contact import Contact
-from datetime import datetime
-from app.validators.contact_validator import ValidationError,validate_contact, phone_number_duplicate_checker
+from app.services.contact_service import ContactService
+from app.validators.contact_validator import ValidationError
 
 class PhoneBookCLI:
     
-    def __init__(self) -> None:
-        self.contacts: list[Contact] = []
+    def __init__(self,service: ContactService) -> None:
+        self.service = service
         self.is_running: bool = True
+        self.search_result_map: dict[int, str] = {}
 
 
     def run(self) -> None:
@@ -29,172 +29,89 @@ class PhoneBookCLI:
 
     def handle_choice(self,choice: str) -> None:
         
-        if choice == "1":
-            self.add_contact()
-        elif choice == "2":
-            self.list_contacts()
-        elif choice == "3":
-            self.search()
-        elif choice == "4":
-            self.delete()
-        elif choice == "5":
-            self.update()
-        elif choice == "6":
-            print("Goodbye! ")
-            self.is_running = False
-        else:
-            print("XX Invalid Input XX")
+        try :
+
+            if choice == "1":
+                self.add_contact()
+            elif choice == "2":
+                self.show_contacts()
+            elif choice == "3":
+                self.search()
+            elif choice == "4":
+                self.delete()
+            elif choice == "5":
+                self.update()
+            elif choice == "6":
+                print("Goodbye! ")
+                self.is_running = False
+            else:
+                print("XX Invalid Input XX")
+        except (ValidationError,ValueError) as exc:
+            print("Error:",exc)
+
 
     def add_contact(self) -> None:
+        
         first_name = input("First Name: ").strip()
         last_name = input("Last Name: ").strip()
         email = input("Email: ").strip().lower()
         phone = input("Phone Number: ").strip()
 
-        try:
-
-            validate_contact(
-                first_name=first_name,
-                last_name=last_name,
-                email=email,
-                phone=phone,
+        self.service.add_contact(
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            phone=phone
             )
-        except ValidationError as e:
-            print("Error:", e)
-            return
-        
-
-        try:
-            phone_number_duplicate_checker(phone,self.contacts)
-        except ValidationError as e:
-            print("Error:",e)
-            return
-
-
-        contact = Contact(
-            first_name= first_name,
-            last_name= last_name,
-            email= email,
-            phone= phone,
-        )
-        self.contacts.append(contact)
         print("Contact Added Successfully.")
-
-    def list_contacts(self) -> None:
-        if not self.contacts:
+        
+    def show_contacts(self) -> None:
+        contacts = self.service.get_all_contacts()
+        if not contacts:
             print("No Contact Found.")
             return
-        
-        for c in self.contacts:
+        for c in contacts:
             print(c)
-            
+    
+    def search(self) -> bool:
 
-    def search(self) -> list[Contact] | None:
         query = input("Enter Something To Search: ").strip().lower()
-        if not query: 
-            print("Search query cannot be empty.")
-            return
-        result = []
-        for c in self.contacts:
-            if (
-                query in c.first_name.lower() or 
-                query in c.last_name.lower() or 
-                query in c.email.lower() or 
-                query in c.phone
-            ):
-                result.append(c)
-                print(f"{len(result)}: {c}")
-
+        result = self.service.search(query=query)
         if not result:
             print("No Contact Found.")
-            return None
-        
-        return result
+            return False
+        self.search_result_map.clear()
+        for idx,c in enumerate(result,1):
+                print(f"{idx}: {c}")
+                self.search_result_map[idx] = c.id
+        return True
 
     def delete(self) -> None:
-        result = self.search()
-        
-        if not result : return
-
-        try:
-            idx = int(input("Select Index To Delete: ").strip())
-        except ValueError:
-            print("Invalid Index.")
+        if not self.search(): 
             return
-        
-        if idx > len(result) or idx < 1:
-            print("Index Out of Range. ")
-            return
-        
-        contact = result[idx-1]
+        idx = input("Select Index To Delete: ").strip()
+        contact_id = self.get_contact_id_from_search_result_by_index(idx)
+        contact = self.service.get_contact_by_id(contact_id=contact_id)
         confirm = input(f"Are you sure to delete {contact.full_name}? [y/n]:").strip().lower()
         if confirm in ("y","yes"):
-            self.contacts.remove(contact)
+            self.service.delete(contact_id)
             print("Contact Removed Successfully.")
         else:
             print("Delete Canceled.")
-
     
     def update(self) -> None:
-        result = self.search()
-
-        if not result:
+        if not self.search():
             return
-
-        try:
-            idx = int(input("Select Index To Update: ").strip())
-        except ValueError:
-            print("Invalid Index.")
-            return
-
-        if idx < 1 or idx > len(result):
-            print("Index Out of Range.")
-            return
-
-        contact = result[idx - 1]
-
+        
+        idx = input("Select Index To Update: ").strip()
+        contact_id = self.get_contact_id_from_search_result_by_index(idx)
+        contact = self.service.get_contact_by_id(contact_id=contact_id)
         print("Leave a field empty to keep the current value.")
         print(f"Updating: {contact.full_name}")
-
         new_first_name = input(f"First Name [{contact.first_name}]: ").strip()
         new_last_name = input(f"Last Name [{contact.last_name}]: ").strip()
         new_email = input(f"Email [{contact.email}]: ").strip().lower()
         new_phone = input(f"Phone [{contact.phone}]: ").strip()
-
-        updated_first_name = new_first_name if new_first_name else contact.first_name
-        updated_last_name = new_last_name if new_last_name else contact.last_name
-        updated_email = new_email if new_email else contact.email
-        updated_phone = new_phone if new_phone else contact.phone
-
-        has_changes = (
-            updated_first_name != contact.first_name or
-            updated_last_name != contact.last_name or
-            updated_email != contact.email or
-            updated_phone != contact.phone
-        )
-
-        if not has_changes:
-            print("No Changes Made.")
-            return
-        
-        try:
-
-            validate_contact(
-                first_name=updated_first_name,
-                last_name=updated_last_name,
-                email=updated_email,
-                phone=updated_phone,
-            )      
-        except ValidationError as e:
-            print("Error:", e)
-            return 
-
-
-        try:
-            phone_number_duplicate_checker(updated_phone,self.contacts,contact)
-        except ValidationError as e:
-            print("Error:",e)       
-            return
 
         confirm = input("Save Changes? [y/n]: ").strip().lower()
 
@@ -202,14 +119,30 @@ class PhoneBookCLI:
             print("Update Canceled.")
             return
 
-        contact.first_name = updated_first_name
-        contact.last_name = updated_last_name
-        contact.email = updated_email
-        contact.phone = updated_phone
-        contact.updated_at = datetime.now()
-
-        print("Contact Updated Successfully.")
+        self.service.update(
+            new_first_name=new_first_name,
+            new_last_name=new_last_name,
+            new_email=new_email,
+            new_phone=new_phone,
+            contact_id=contact_id
+        )
         
+        print("Contact Updated Successfully.")
+
+    def get_contact_id_from_search_result_by_index(self,index: str) -> str:
+        if not index.isdigit() :
+            raise ValueError("Invalid Index.")
+        idx = int(index)
+        if idx > len(self.search_result_map) or idx < 1:
+            raise ValueError("Index Out of Range.")
+        return self.search_result_map[idx]       
+
+
+
+
+        
+
+
 
         
 

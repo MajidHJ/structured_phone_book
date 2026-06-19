@@ -1,8 +1,11 @@
 from app.cli.menu import PhoneBookCLI
+from app.services.contact_service import ContactService
 
 def main() -> None:
-    cli = PhoneBookCLI()
+    service = ContactService()
+    cli = PhoneBookCLI(service)
     cli.run()
 
 
-main()
+if __name__ == "__main__":
+    main()
