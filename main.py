@@ -1,10 +1,9 @@
 from app.cli.menu import PhoneBookCLI
 from app.services.contact_service import ContactService
-from app.repositories.in_memory_contact_repository import InMemoryContactRepository
-
+from app.repositories.json_contact_repository import JsonContactRepository
 def main() -> None:
-    repo = InMemoryContactRepository()
-    service = ContactService(repo)
+    j_repo = JsonContactRepository()
+    service = ContactService(j_repo)
     cli = PhoneBookCLI(service)
     cli.run()
 
